@@ -1,24 +1,40 @@
-name: CI
-on: 
+ame: Deploy Blog
+
+on:
   push:
     branches:
-      - main #here we choose to deploy only when a push is detected on the main branch
+      - main
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-    - uses: actions/checkout@v1
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: eu-west-3 # Use your bucket region here
-        
-    # Here you could add some building steps if you were dealing with some angular/react/Vue...
-    # - name: Build static site
-    #  run: yarn install && npm run-script build
-    
-    - name: Deploy static site to S3 bucket
-      run: aws s3 sync ./anglais.plus/ s3://anglais.plus --delete
-      # --delete flag will remove any file in the s3 that are not on the "thefoldertodeploy" folder
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: 12
+      - name: Caching Gatsby
+        id: gatsby-cache-build
+        uses: actions/cache@v2
+        with:
+          path: |
+            public
+            .cache
+            node_modules
+          key: ${{ runner.os }}-gatsby-alexhyett-site-build-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-gatsby-alexhyett-site-build-
+      - name: Install dependencies
+        run: yarn install
+      - name: Run Lint
+        run: yarn run lint
+      - name: Build
+        run: yarn run build
+      - name: Set AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
+      - name: Deploy to S3
+        run: yarn run deploy
